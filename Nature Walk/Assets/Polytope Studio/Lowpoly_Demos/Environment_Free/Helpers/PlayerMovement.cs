@@ -60,20 +60,21 @@ public class PlayerMovement : MonoBehaviour
 
         if(cycle < (int)transform.position.z/480){
             cycle = (int)transform.position.z/480;
+            Vector3 next = new Vector3(-250,0,(cycle+2)*480+380);
             if(cycle>1){
-                if(cycle%3==1){
-                    midland4.transform.position = new Vector3(-250,0,(cycle+1)*480+380);
-                }else if(cycle%3==2){
-                    midland1.transform.position = new Vector3(-250,0,(cycle+1)*480+380);
-                }else if(cycle%3==3){
-                    midland2.transform.position = new Vector3(-250,0,(cycle+1)*480+380);
+                if(cycle%4==1){
+                    midland4.transform.position = next;
+                }else if(cycle%4==2){
+                    midland1.transform.position = next;
+                }else if(cycle%4==3){
+                    midland2.transform.position = next;
                 }else {
-                    midland3.transform.position = new Vector3(-250,0,(cycle+1)*480+380);
+                    midland3.transform.position = next;
                 }
-                faraway.transform.position = new Vector3(-250,0,(cycle+4)*480);
             }
             // terrain disappears after 1420
-            Debug.Log(midland1.transform.position.z+" "+midland2.transform.position.z+" "+midland3.transform.position.z+" "+midland4.transform.position.z);
+            Debug.Log(cycle+" "+midland1.transform.position.z+" "+midland2.transform.position.z+" "+midland3.transform.position.z+" "+midland4.transform.position.z);
         }
+        faraway.transform.position = new Vector3(-250,0,transform.position.z+4*480);
     }
 }
