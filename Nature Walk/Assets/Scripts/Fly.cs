@@ -24,8 +24,7 @@ public class Fly : MonoBehaviour
     void Update()
     {
         // Get input from the thumbstick
-        Vector2 thumbstickInput = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick);
-        // Debug.Log(thumbstickInput);
+        Vector2 thumbstickInput = OVRInput.Get(OVRInput.Axis2D.SecondaryThumbstick);
         // Calculate the movement direction based on the thumbstick input
         Vector3 moveDirection = new Vector3(thumbstickInput.x, 0f, thumbstickInput.y);
         moveDirection = transform.TransformDirection(moveDirection); // Transform relative to the camera's orientation
