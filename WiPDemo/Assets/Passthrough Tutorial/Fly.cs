@@ -21,36 +21,28 @@ public class Fly : MonoBehaviour
     public TMP_Text statText;
     public TMP_Text debug;
     public NNModel modelSource;
+    public GameObject hole;
+    public Vector3 defaultScale = new Vector3(.1f,.1f,.2f);
 
     int planeLength = 200;
     int initialOffset = -20;
     int sideOffset = -50;
     int cycle = 0;
     private ArrayList pastWindow = new ArrayList();
-    private Model m_RuntimeModel;
+    private Model model;
     private IWorker worker;
 
     // https://developer.oculus.com/documentation/unity/unity-passthrough-tutorial-passthrough-window/
     void Start()
     {
-        m_RuntimeModel = ModelLoader.Load(modelSource);
-        worker = WorkerFactory.CreateWorker(WorkerFactory.Type.ComputePrecompiled, m_RuntimeModel);
+        model = ModelLoader.Load(modelSource);
+        worker = WorkerFactory.CreateWorker(WorkerFactory.Type.ComputePrecompiled, model);
     }
 
     void Update()
     {
-        predictSpeed();
-        // Get input from the thumbstick
-        Vector2 thumbstickInput = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick);
-        // Calculate the movement direction based on the thumbstick input
-        Vector3 moveDirection = new Vector3(thumbstickInput.x, 0f, thumbstickInput.y);
-        moveDirection = transform.TransformDirection(moveDirection); // Transform relative to the camera's orientation
-        
-        // Move the camera position
-        // Quaternion rotate = cameraRig.centerEyeAnchor.rotation;
-        // rotate *= Quaternion.Euler(0, 90, 0);
-        // transform.position += flySpeed * Time.deltaTime;
-        float speed = thumbstickInput.x * flySpeed;
+        float speed = flySpeed*(float)predictSpeed();
+        messageText.SetText("Speed: "+speed);
         transform.position = new Vector3(transform.position.x, transform.position.y, transform.position.z + speed * Time.deltaTime);
         // messageText.SetText("Speed: "+speed.ToString());
 
@@ -68,12 +60,19 @@ public class Fly : MonoBehaviour
                     midland3.transform.position = next;
                 }
             }
-            // terrain disappears after 1420
-            // Debug.Log(cycle+" "+midland1.transform.position.z+" "+midland2.transform.position.z+" "+midland3.transform.position.z+" "+midland4.transform.position.z);
         }
         faraway.transform.position = new Vector3(sideOffset,0,transform.position.z+2*planeLength+initialOffset);
+    
+        if (OVRInput.GetUp(OVRInput.Button.One))
+        {
+            if(hole.transform.localScale.x==1f){
+                hole.transform.localScale=defaultScale;
+            }else{
+                hole.transform.localScale = new Vector3(1,1,1);
+            }
+        }
     }
-    void predictSpeed(){
+    int predictSpeed(){
         var headPosition = head.transform.position;
         statText.SetText("Head.y: "+headPosition.y.ToString());
         int window=100;
@@ -83,24 +82,50 @@ public class Fly : MonoBehaviour
             pastWindow.RemoveAt(0);
             pastWindow.Add(headPosition.y);
         }
-        float[] raw = (float[])pastWindow.ToArray(typeof(float));
-        if(pastWindow.Count==window){           
+        int speed=0;
+        if(pastWindow.Count==window){      
 
-            var inputTensor = new Tensor(1, 1, normalize(raw));
-            debug.SetText(raw.Length.ToString()+" "+pastWindow[pastWindow.Count-1].ToString()+" "+inputTensor);
-            // worker.Execute(inputTensor);
+            float[] raw = (float[])pastWindow.ToArray(typeof(float));
+            normalize(raw);
 
-            // var output = worker.PeekOutput();
-           
-            // messageText.SetText("*Speed: "+output);
+            var inputTensor = new Tensor(1, 1, 100, 1, raw);
+            worker.Execute(inputTensor);
+
+            var output = worker.PeekOutput();
+            int pred = maxIndex(output)+1;
+            speed=pred;
             
             inputTensor.Dispose();
-            // output.Dispose();
-            // worker.Dispose();
-        }else{
-            debug.SetText(raw.Length.ToString()+" "+pastWindow[pastWindow.Count-1].ToString()+" "+raw[raw.Length-1].ToString());
+            output.Dispose();
         }
-        
+        return speed;
+    }
+    void OnDestroy(){
+        worker.Dispose();
+    }
+    float[] maxmin(float []a, int n) {
+        float max=a[0];
+        float min=a[0];   
+        for (int i = 0; i < n; i++){
+            if(a[i]<min){
+                min=a[i];
+            }
+            if(a[i]>max){
+                max=a[i];
+            }
+        }
+        return new float[]{max, min};
+    }
+    int maxIndex(Tensor t){
+        float max=t[0];
+        int idx=0;
+        for(int i=1;i<4;i++){
+            if(t[i]>max){
+                max=t[i];
+                idx=i;
+            }
+        }
+        return idx;
     }
     float mean(float []a, int n) {
         float sum = 0;   
@@ -111,9 +136,6 @@ public class Fly : MonoBehaviour
     }
     float variance(float []a, int n) {
         float m = mean(a,n);
-     
-        // Compute sum squared 
-        // differences with mean.
         float sqDiff = 0;
          
         for (int i = 0; i < n; i++) 
